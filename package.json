@@ -1,0 +1,10 @@
+{
+    "name": "bank-account-js",
+    "version": "1.0.0",
+    "description": "A simple Bank Account Management system in JavaScript.",
+    "main": "src/index.js",
+    "scripts": {
+        "start": "node src/index.js"
+    },
+    "dependencies": {}
+}
