@@ -1,96 +1,93 @@
-class BankAccount {
-    constructor(owner, initialBalance) {
-        this.owner = owner;
-        this.balance = initialBalance;
+import readline from "readline";
+import pkg from "../../antithesis-sdk-typescript/dist/index.js";
+
+console.log("SDK Import Debug:", pkg);
+
+const { AssertRaw, GetRandom } = pkg; // Extract SDK functions
+
+class Task {
+    
+    constructor(title, priority) {
+        //date info
+        this.today = new Date();
+        this.nextThreeDays = new Date(this.today); // Create a copy of today
+        this.nextThreeDays.setDate(this.today.getDate() + 3);
+        this.title = title;
+        this.priority = priority;
+        this.completed = false;
+        //date 3 days from now
+        var year = this.nextThreeDays.toLocaleString("default", { year: "numeric" });
+        var month = this.nextThreeDays.toLocaleString("default", { month: "2-digit" });
+        var day = this.nextThreeDays.toLocaleString("default", { day: "2-digit" });
+        var formattedDate = year + "/" + month + "/" + day;
+        this.dueDate = formattedDate;
     }
 
-    deposit(amount) {
-        if (amount > 0) {
-            this.balance += amount;
-            console.log(`Deposited $${amount} successfully!`);
-        } else {
-            console.log("Invalid deposit amount!");
+    setDueDate() {
+        rl.question("Please put in new date: \n", (date) => {
+            this.dueDate = date;
+            console.log(`Due date set to: ${this.dueDate}`);
+            showMenu();
+        });
+    }
+
+    
+
+    markCompleted() {
+        this.completed = true;
+        console.log(`Task "${this.title}" marked as completed!`);
+    }
+
+    getDetails() {
+        if (new Date(this.dueDate) < new Date()) {
+            console.log(`Due date is past today's date`);
         }
-    }
-
-    withdraw(amount) {
-        if (amount > 0 && amount <= this.balance) {
-            this.balance -= amount;
-            console.log(`Withdrawn $${amount} successfully!`);
-        } else {
-            console.log("Invalid or insufficient funds!");
-        }
-    }
-
-    checkBalance() {
-        console.log(`Account Owner: ${this.owner}`);
-        console.log(`Current Balance: $${this.balance}`);
+        return `${this.completed ? "[✔]" : "[ ]"} ${this.title} (Priority: ${this.priority}) (Due: ${this.dueDate})`;
     }
 }
-
-const readline = require("readline");
 
 const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout
 });
 
-let accounts = [];
+let tasks = [];
 
-function showMenu() {
-    console.log(`\nBank Account Management System`);
-    console.log("1. Create Account");
-    console.log("2. Deposit Money");
-    console.log("3. Withdraw Money");
-    console.log("4. Check Balance");
-    console.log("5. Exit");
-    rl.question("Choose an option: ", handleUserInput);
-}
-
+// ✅ Handle user input
 function handleUserInput(choice) {
     switch (choice.trim()) {
         case "1":
-            rl.question("Enter owner name: ", (name) => {
-                rl.question("Enter initial deposit amount: ", (initialDeposit) => {
-                    accounts.push(new BankAccount(name, parseFloat(initialDeposit)));
-                    console.log("Account created successfully!");
-                    showMenu();
-                });
+            rl.question("Enter task title: ", (title) => {
+                const priority = GetRandom ? GetRandom(1, 5) : Math.floor(Math.random() * 5) + 1;
+                tasks.push(new Task(title, priority));
+                console.log(`Task added: "${title}" with priority ${priority}`);
+                showMenu();
             });
             break;
         case "2":
-            rl.question("Enter account index (0-based): ", (index) => {
-                rl.question("Enter deposit amount: ", (amount) => {
-                    let accIndex = parseInt(index);
-                    if (accIndex >= 0 && accIndex < accounts.length) {
-                        accounts[accIndex].deposit(parseFloat(amount));
-                    } else {
-                        console.log("Invalid account index!");
-                    }
-                    showMenu();
-                });
+            rl.question("Enter task index to mark as completed: ", (index) => {
+                let taskIndex = parseInt(index);
+                if (taskIndex >= 0 && taskIndex < tasks.length) {
+                    tasks[taskIndex].markCompleted();
+                } else {
+                    console.log("Invalid task index!");
+                }
+                showMenu();
             });
             break;
         case "3":
-            rl.question("Enter account index (0-based): ", (index) => {
-                rl.question("Enter withdrawal amount: ", (amount) => {
-                    let accIndex = parseInt(index);
-                    if (accIndex >= 0 && accIndex < accounts.length) {
-                        accounts[accIndex].withdraw(parseFloat(amount));
-                    } else {
-                        console.log("Invalid account index!");
-                    }
-                    showMenu();
-                });
-            });
+            console.log("\nTask List:");
+            tasks.forEach((task, i) => console.log(`${i}: ${task.getDetails()}`));
+            showMenu();
             break;
         case "4":
-            rl.question("Enter account index (0-based): ", (index) => {
-                let accIndex = parseInt(index);
-                if (accIndex >= 0 && accIndex < accounts.length) {
-                    accounts[accIndex].checkBalance();
+            rl.question("Enter task index to delete: ", (index) => {
+                let taskIndex = parseInt(index);
+                if (taskIndex >= 0 && taskIndex < tasks.length) {
+                    console.log(`Deleted task: "${tasks[taskIndex].title}"`);
+                    tasks.splice(taskIndex, 1);
                 } else {
-                    console.log("Invalid account index!");
+                    console.log("Invalid task index!");
                 }
                 showMenu();
             });
@@ -106,4 +103,28 @@ function handleUserInput(choice) {
     }
 }
 
-showMenu();
+// ✅ Display menu
+function showMenu() {
+    const priority = pkg.RandomChoice ? pkg.RandomChoice([1, 2, 3, 4, 5]) : Math.floor(Math.random() * 5) + 1;
+console.log("Priority (RandomChoice):", priority);
+    console.log(`\nTask Management System`);
+    console.log("1. Add Task");
+    console.log("2. Mark Task as Completed");
+    console.log("3. List Tasks");
+    console.log("4. Delete Task");
+    console.log("5. Exit");
+
+    // Use the correct assertion function
+    const expectedTasks = tasks.length;
+    const actualTasks = tasks.filter(t => !t.completed).length + tasks.filter(t => t.completed).length;
+
+    if (AssertRaw) {
+        AssertRaw(expectedTasks === actualTasks, "Task count should remain consistent");
+    } else {
+        console.warn("AssertRaw not found in SDK");
+    }
+
+    rl.question("Choose an option: ", handleUserInput);
+}
+
+showMenu(); // ✅ Start the program
