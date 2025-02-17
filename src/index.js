@@ -1,5 +1,6 @@
 import readline from "readline";
-import pkg from "../../antithesis-sdk-typescript/dist/index.js";
+import pkg, { LogEvent } from "../../antithesis-sdk-typescript/dist/index.js";
+import { log } from "console";
 
 console.log("SDK Import Debug:", pkg);
 
@@ -35,7 +36,13 @@ class Task {
 
     markCompleted() {
         this.completed = true;
+        logsuccesss = false;
+        pkg.Always("Checking if task exists", this != undefined, {title: this.title});
+        pkg.LogEvent('Task completed:', {title: this.title});
         console.log(`Task "${this.title}" marked as completed!`);
+        logsuccesss = true;
+        pkg.Always("Logging success", logsuccesss, {title: this.title});
+        
     }
 
     getDetails() {
@@ -55,12 +62,21 @@ let tasks = [];
 
 // ✅ Handle user input
 function handleUserInput(choice) {
+    //Don't really understand the differences 
+    //of Reachable vs Assert, seems to be more for the
+    //UI, This test property will be viewable in the "Antithesis SDK: Reachablity assertions" 
+    // group of the triage report.
+    //----------------
+    //Use Reachable() only for paths that should 
+    //always be hit in normal execution
+    pkg.Reachable("Reachable code");
     switch (choice.trim()) {
         case "1":
             rl.question("Enter task title: ", (title) => {
-                const priority = GetRandom ? GetRandom(1, 5) : Math.floor(Math.random() * 5) + 1;
+                const priority = pkg.RandomChoice ? pkg.RandomChoice([1, 2, 3, 4, 5]) : Math.floor(Math.random() * 5) + 1;
                 tasks.push(new Task(title, priority));
                 console.log(`Task added: "${title}" with priority ${priority}`);
+                pkg.LogEvent('Tasks added:', {title: title, priority: priority});
                 showMenu();
             });
             break;
@@ -70,6 +86,7 @@ function handleUserInput(choice) {
                 if (taskIndex >= 0 && taskIndex < tasks.length) {
                     tasks[taskIndex].markCompleted();
                 } else {
+                    pkg.Reachable("User entered an invalid task index");
                     console.log("Invalid task index!");
                 }
                 showMenu();
@@ -87,16 +104,23 @@ function handleUserInput(choice) {
                     console.log(`Deleted task: "${tasks[taskIndex].title}"`);
                     tasks.splice(taskIndex, 1);
                 } else {
+                    
                     console.log("Invalid task index!");
                 }
                 showMenu();
             });
             break;
         case "5":
+            //AlwaysOrUnreachable should be used when execution 
+            // should always reach a certain point,
+            // or else the program is broken.
+            pkg.AlwaysOrUnreachable("Program is reachable");
             console.log("Exiting program. Thank you!");
             rl.close();
             break;
         default:
+            // Place Unreachable() in truly unexpected execution paths
+            pkg.Unreachable("Unreachable code");
             console.log("Invalid choice! Please enter a valid option.");
             showMenu();
             break;
@@ -123,7 +147,11 @@ console.log("Priority (RandomChoice):", priority);
     } else {
         console.warn("AssertRaw not found in SDK");
     }
-
+    //Assert that condition is true at least one time that this 
+    // function was called. 
+    // The test property spawned by Sometimes will be 
+    // marked as failing if this function is never called, 
+    // or if condition is false every time that it is called.
     rl.question("Choose an option: ", handleUserInput);
 }
 
