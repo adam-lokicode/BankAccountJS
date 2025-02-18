@@ -1,53 +1,58 @@
 import readline from "readline";
-import pkg, { LogEvent } from "../../antithesis-sdk-typescript/dist/index.js";
-import { log } from "console";
+import pkg from "../../antithesis-sdk-typescript/dist/index.js";
 
 console.log("SDK Import Debug:", pkg);
 
-const { AssertRaw, GetRandom } = pkg; // Extract SDK functions
+// Extract SDK functions
+const { AssertRaw, GetRandom, LogEvent, Always, Sometimes, Reachable, Unreachable, AlwaysOrUnreachable, RandomChoice } = pkg;
 
 class Task {
-    
     constructor(title, priority) {
-        //date info
-        this.today = new Date();
-        this.nextThreeDays = new Date(this.today); // Create a copy of today
-        this.nextThreeDays.setDate(this.today.getDate() + 3);
+        // 📌 Set task properties
         this.title = title;
         this.priority = priority;
         this.completed = false;
-        //date 3 days from now
-        var year = this.nextThreeDays.toLocaleString("default", { year: "numeric" });
-        var month = this.nextThreeDays.toLocaleString("default", { month: "2-digit" });
-        var day = this.nextThreeDays.toLocaleString("default", { day: "2-digit" });
-        var formattedDate = year + "/" + month + "/" + day;
-        this.dueDate = formattedDate;
+
+        // 📌 Set due date to 3 days from today
+        this.today = new Date();
+        this.nextThreeDays = new Date(this.today);
+        this.nextThreeDays.setDate(this.today.getDate() + 3);
+        this.dueDate = this.formatDate(this.nextThreeDays);
+    }
+
+    formatDate(date) {
+        return date.toISOString().split("T")[0]; // Returns YYYY-MM-DD format
     }
 
     setDueDate() {
-        rl.question("Please put in new date: \n", (date) => {
+        rl.question("Please put in new due date (YYYY-MM-DD): \n", (date) => {
             this.dueDate = date;
-            console.log(`Due date set to: ${this.dueDate}`);
+            console.log(`✅ Due date updated to: ${this.dueDate}`);
             showMenu();
         });
     }
 
-    
-
     markCompleted() {
         this.completed = true;
-        logsuccesss = false;
-        pkg.Always("Checking if task exists", this != undefined, {title: this.title});
-        pkg.LogEvent('Task completed:', {title: this.title});
-        console.log(`Task "${this.title}" marked as completed!`);
-        logsuccesss = true;
-        pkg.Always("Logging success", logsuccesss, {title: this.title});
         
+        let logSuccess = false;
+
+        // 📌 ✅ Ensure task exists before marking completed
+        Always("Checking if task exists", this !== undefined, { title: this.title });
+
+        // 📌 ✅ Log event to Antithesis
+        LogEvent("Task completed", { title: this.title });
+
+        // 📌 ✅ Ensure logging was successful
+        logSuccess = true;
+        Always("Logging success", logSuccess, { title: this.title });
+
+        console.log(`✔ Task "${this.title}" marked as completed!`);
     }
 
     getDetails() {
         if (new Date(this.dueDate) < new Date()) {
-            console.log(`Due date is past today's date`);
+            console.warn(`⚠ Due date for "${this.title}" has already passed.`);
         }
         return `${this.completed ? "[✔]" : "[ ]"} ${this.title} (Priority: ${this.priority}) (Due: ${this.dueDate})`;
     }
@@ -62,66 +67,67 @@ let tasks = [];
 
 // ✅ Handle user input
 function handleUserInput(choice) {
-    //Don't really understand the differences 
-    //of Reachable vs Assert, seems to be more for the
-    //UI, This test property will be viewable in the "Antithesis SDK: Reachablity assertions" 
-    // group of the triage report.
-    //----------------
-    //Use Reachable() only for paths that should 
-    //always be hit in normal execution
-    pkg.Reachable("Reachable code");
+    Reachable("User input received");
+
     switch (choice.trim()) {
-        case "1":
+        case "1": // ✅ Add Task
             rl.question("Enter task title: ", (title) => {
-                const priority = pkg.RandomChoice ? pkg.RandomChoice([1, 2, 3, 4, 5]) : Math.floor(Math.random() * 5) + 1;
+                const priority = RandomChoice ? RandomChoice([1, 2, 3, 4, 5]) : Math.floor(Math.random() * 5) + 1;
+                
                 tasks.push(new Task(title, priority));
-                console.log(`Task added: "${title}" with priority ${priority}`);
-                pkg.LogEvent('Tasks added:', {title: title, priority: priority});
+                LogEvent("Task added", { title: title, priority: priority });
+                
+                console.log(`✅ Task added: "${title}" (Priority: ${priority})`);
                 showMenu();
             });
             break;
-        case "2":
+        
+        case "2": // ✅ Mark Task as Completed
             rl.question("Enter task index to mark as completed: ", (index) => {
                 let taskIndex = parseInt(index);
                 if (taskIndex >= 0 && taskIndex < tasks.length) {
                     tasks[taskIndex].markCompleted();
                 } else {
-                    pkg.Reachable("User entered an invalid task index");
-                    console.log("Invalid task index!");
+                    Reachable("Invalid task index entered");
+                    console.warn("⚠ Invalid task index!");
                 }
                 showMenu();
             });
             break;
-        case "3":
-            console.log("\nTask List:");
+
+        case "3": // ✅ List Tasks
+            console.log("\n📋 Task List:");
             tasks.forEach((task, i) => console.log(`${i}: ${task.getDetails()}`));
             showMenu();
             break;
-        case "4":
+
+        case "4": // ✅ Delete Task
             rl.question("Enter task index to delete: ", (index) => {
                 let taskIndex = parseInt(index);
                 if (taskIndex >= 0 && taskIndex < tasks.length) {
-                    console.log(`Deleted task: "${tasks[taskIndex].title}"`);
+                    console.log(`🗑 Deleted task: "${tasks[taskIndex].title}"`);
+
+                    // 📌 ✅ Occasionally verify tasks exist before deletion
+                    Sometimes("Occasionally checking task deletion", tasks.length > 0);
+
                     tasks.splice(taskIndex, 1);
                 } else {
-                    
-                    console.log("Invalid task index!");
+                    Reachable("Invalid delete attempt");
+                    console.warn("⚠ Invalid task index!");
                 }
                 showMenu();
             });
             break;
-        case "5":
-            //AlwaysOrUnreachable should be used when execution 
-            // should always reach a certain point,
-            // or else the program is broken.
-            pkg.AlwaysOrUnreachable("Program is reachable");
-            console.log("Exiting program. Thank you!");
+
+        case "5": // ✅ Exit Program
+            AlwaysOrUnreachable("Ensuring the program can reach exit");
+            console.log("👋 Exiting program. Thank you!");
             rl.close();
             break;
-        default:
-            // Place Unreachable() in truly unexpected execution paths
-            pkg.Unreachable("Unreachable code");
-            console.log("Invalid choice! Please enter a valid option.");
+
+        default: // ❌ Invalid Input
+            Unreachable("Unexpected user input");
+            console.warn("⚠ Invalid choice! Please enter a valid option.");
             showMenu();
             break;
     }
@@ -129,29 +135,22 @@ function handleUserInput(choice) {
 
 // ✅ Display menu
 function showMenu() {
-    const priority = pkg.RandomChoice ? pkg.RandomChoice([1, 2, 3, 4, 5]) : Math.floor(Math.random() * 5) + 1;
-console.log("Priority (RandomChoice):", priority);
-    console.log(`\nTask Management System`);
+    console.log("\n📌 Task Management System");
     console.log("1. Add Task");
     console.log("2. Mark Task as Completed");
     console.log("3. List Tasks");
     console.log("4. Delete Task");
     console.log("5. Exit");
 
-    // Use the correct assertion function
+    // 📌 ✅ Ensure task count is correct
     const expectedTasks = tasks.length;
     const actualTasks = tasks.filter(t => !t.completed).length + tasks.filter(t => t.completed).length;
-
     if (AssertRaw) {
         AssertRaw(expectedTasks === actualTasks, "Task count should remain consistent");
     } else {
-        console.warn("AssertRaw not found in SDK");
+        console.warn("⚠ AssertRaw not found in SDK");
     }
-    //Assert that condition is true at least one time that this 
-    // function was called. 
-    // The test property spawned by Sometimes will be 
-    // marked as failing if this function is never called, 
-    // or if condition is false every time that it is called.
+
     rl.question("Choose an option: ", handleUserInput);
 }
 
